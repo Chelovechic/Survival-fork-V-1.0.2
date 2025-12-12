@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.fiisadev.vs_logistics.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "vs_logistics.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+    "ItemInHandMixin",
+    "NozzleAnimationMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "creativetab.base": "VS Logistics",
+  "block.vs_logistics.pump_mode.pull": "Pull",
+  "block.vs_logistics.pump_mode.push": "Push"
+}

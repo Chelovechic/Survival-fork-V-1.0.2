@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "down": "vs_logistics:block/fluid_port/side",
+    "east": "vs_logistics:block/fluid_port/side",
+    "north": "vs_logistics:block/fluid_port/side",
+    "particle": "vs_logistics:block/fluid_port/side",
+    "south": "vs_logistics:block/fluid_port/side",
+    "up": "vs_logistics:block/fluid_port/front",
+    "west": "vs_logistics:block/fluid_port/side"
+  }
+}

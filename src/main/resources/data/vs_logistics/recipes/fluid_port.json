@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SPS",
+    "PFP",
+    "SPS"
+  ],
+  "key": {
+    "F": { "item": "tfmg:steel_fluid_tank" },
+    "S": { "item": "tfmg:steel_ingot" },
+    "P": { "item": "tfmg:steel_pipe" }
+  },
+  "result": {
+    "item": "vs_logistics:fluid_port",
+    "count": 1
+  }
+}

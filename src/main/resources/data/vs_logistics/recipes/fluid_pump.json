@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "SES",
+    "SKS",
+    "SFS"
+  ],
+  "key": {
+    "F": { "item": "tfmg:steel_fluid_tank" },
+    "E": { "item": "create:electron_tube" },
+    "S": { "item": "tfmg:steel_ingot" },
+    "K": { "item": "minecraft:dried_kelp_block" }
+  },
+  "result": {
+    "item": "vs_logistics:fluid_pump",
+    "count": 1
+  }
+}
