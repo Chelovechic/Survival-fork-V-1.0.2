@@ -1,7 +1,9 @@
 package com.fiisadev.vs_logistics.content.fluid_pump;
 
+import com.fiisadev.vs_logistics.content.fluid_pump.handlers.PlayerHandler;
 import com.fiisadev.vs_logistics.registry.LogisticsBlockEntities;
 import com.simibubi.create.AllShapes;
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.IBE;
 import net.createmod.catnip.math.VoxelShaper;
 import net.minecraft.core.BlockPos;
@@ -23,7 +25,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-public class FluidPumpBlock extends HorizontalDirectionalBlock implements IBE<FluidPumpBlockEntity> {
+public class FluidPumpBlock extends HorizontalDirectionalBlock implements IWrenchable, IBE<FluidPumpBlockEntity> {
     private static final VoxelShaper SHAPER = new AllShapes.Builder(Shapes.or(
         Block.box(0, 0, 0, 16, 16, 11),
         Block.box(0, 0, 11, 16, 11, 16),
@@ -53,22 +55,25 @@ public class FluidPumpBlock extends HorizontalDirectionalBlock implements IBE<Fl
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!player.getMainHandItem().isEmpty())
+            return InteractionResult.PASS;
+
         if (!level.isClientSide) {
             withBlockEntityDo(level, pos, (be) -> {
-                IUserInfo userInfo = be.getUserInfo();
+                IFluidPumpHandler pumpHandler = be.getPumpHandler();
 
-                if (userInfo != null && !userInfo.is(player)) return;
+                if (pumpHandler != null && !pumpHandler.is(player)) return;
 
                 player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
                     BlockPos fluidPumpPos = playerData.getFluidPumpPos();
 
                     if (fluidPumpPos == null) {
-                        be.setUserInfo(new PlayerUserInfo(be, player));
+                        be.setPumpHandler(new PlayerHandler(be, player));
                         return;
                     }
 
                     if (fluidPumpPos.equals(pos))
-                        be.setUserInfo(null);
+                        be.setPumpHandler(null);
                 });
             });
         }
@@ -79,12 +84,8 @@ public class FluidPumpBlock extends HorizontalDirectionalBlock implements IBE<Fl
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         withBlockEntityDo(level, pos, (be) -> {
-            IUserInfo userInfo = be.getUserInfo();
-
-            if (userInfo == null)
-                return;
-
-            be.breakHose();
+            if (be.getPumpHandler() != null)
+                be.breakHose();
         });
 
         super.onRemove(state, level, pos, newState, movedByPiston);

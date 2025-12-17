@@ -7,7 +7,6 @@ import com.fiisadev.vs_logistics.registry.LogisticsItems;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -25,7 +24,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = VSLogistics.MOD_ID, value = Dist.CLIENT)
-public class NozzleRenderer {
+public class RenderNozzle {
     private static float startUsingTime = 0;
 
     @SubscribeEvent
@@ -51,11 +50,11 @@ public class NozzleRenderer {
             poseStack.mulPose(Axis.XP.rotationDegrees(22.5f));
             poseStack.scale(1.6f, 1.6f, 1.6f);
 
-            if (startUsingTime == 0 && InputEvent.isUseHeld) {
+            if (startUsingTime == 0 && HandleInput.isUseHeld) {
                 startUsingTime = mc.level.getGameTime() + event.getPartialTick();
             }
 
-            if (InputEvent.isUseHeld) {
+            if (HandleInput.isUseHeld) {
                 float time = mc.level.getGameTime() + event.getPartialTick() - startUsingTime;
                 poseStack.translate(0, 0.05 * Math.sin(time / 6f), 0);
             } else {

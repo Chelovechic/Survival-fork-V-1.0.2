@@ -2,8 +2,7 @@ package com.fiisadev.vs_logistics.registry;
 
 import com.fiisadev.vs_logistics.VSLogistics;
 import com.fiisadev.vs_logistics.network.SyncFluidPumpPlayerCapPacket;
-import com.fiisadev.vs_logistics.network.NozzleUsePacket;
-import net.minecraft.server.MinecraftServer;
+import com.fiisadev.vs_logistics.network.FluidPumpUsePacket;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 
@@ -31,10 +30,10 @@ public class LogisticsNetwork {
 
         CHANNEL.registerMessage(
                 id++,
-                NozzleUsePacket.class,
-                NozzleUsePacket::toBytes,
-                NozzleUsePacket::new,
-                NozzleUsePacket::handle
+                FluidPumpUsePacket.class,
+                FluidPumpUsePacket::toBytes,
+                FluidPumpUsePacket::new,
+                FluidPumpUsePacket::handle
         );
     }
 }

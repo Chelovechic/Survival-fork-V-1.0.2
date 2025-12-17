@@ -1,7 +1,7 @@
 {
   "block.vs_logistics.fluid_port.tooltip.summary": "A simple connection point for your _tanks_. Any fluid pumped into it flows straight to the _linked tank_ on your VS ship.",
-  "block.vs_logistics.fluid_pump.tooltip.condition1": "Push Mode",
-  "block.vs_logistics.fluid_pump.tooltip.condition2": "Pull Mode",
+  "block.vs_logistics.fluid_pump.tooltip.condition1": "Discharge Mode",
+  "block.vs_logistics.fluid_pump.tooltip.condition2": "Suction Mode",
   "block.vs_logistics.fluid_pump.tooltip.behaviour1": "Moves fluid from the pump _into_ a connected Fluid Port.",
   "block.vs_logistics.fluid_pump.tooltip.behaviour2": "_Extracts_ fluid from the connected tank _back into_ the pump.",
   "block.vs_logistics.fluid_pump.tooltip.summary": "Transfer fluids between the _world_ and your _VS ships_. Switch modes to control the direction of flow."

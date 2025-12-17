@@ -1,7 +1,5 @@
 package com.fiisadev.vs_logistics.client.utils;
 
-import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlock;
-import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlockEntity;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -9,7 +7,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 
 public class HoseUtils {
     // TODO config
@@ -35,13 +32,6 @@ public class HoseUtils {
             nozzlePos = nozzlePos.add(0, -0.33, 0);
 
         return nozzlePos.yRot((float)Math.toRadians(-bodyRotation));
-    }
-
-    public static Vec3 getNozzleHandleDir(Player player, float partialTicks){
-        float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * partialTicks;
-        return new Vec3(0, 0, 1)
-                .yRot((float)Math.toRadians(-bodyRotation))
-                .normalize();
     }
 
     private static Vec3 bezier(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, float t) {

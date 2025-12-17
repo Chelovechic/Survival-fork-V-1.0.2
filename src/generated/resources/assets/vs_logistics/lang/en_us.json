@@ -4,11 +4,12 @@
   "block.vs_logistics.fluid_pump": "Fluid Pump",
   "block.vs_logistics.fluid_pump.tooltip.behaviour1": "Moves fluid from the pump _into_ a connected Fluid Port.",
   "block.vs_logistics.fluid_pump.tooltip.behaviour2": "_Extracts_ fluid from the connected tank _back into_ the pump.",
-  "block.vs_logistics.fluid_pump.tooltip.condition1": "Push Mode",
-  "block.vs_logistics.fluid_pump.tooltip.condition2": "Pull Mode",
+  "block.vs_logistics.fluid_pump.tooltip.condition1": "Discharge Mode",
+  "block.vs_logistics.fluid_pump.tooltip.condition2": "Suction Mode",
   "block.vs_logistics.fluid_pump.tooltip.summary": "Transfer fluids between the _world_ and your _VS ships_. Switch modes to control the direction of flow.",
-  "block.vs_logistics.pump_mode.pull": "Pull",
-  "block.vs_logistics.pump_mode.push": "Push",
+  "block.vs_logistics.fluid_pump_mode": "Fluid Pump Mode",
+  "block.vs_logistics.pump_mode.discharge": "Discharge",
+  "block.vs_logistics.pump_mode.suction": "Suction",
   "creativetab.base": "VS Logistics",
   "item.vs_logistics.nozzle": "Nozzle"
 }

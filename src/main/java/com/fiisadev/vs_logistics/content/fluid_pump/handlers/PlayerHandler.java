@@ -1,8 +1,11 @@
-package com.fiisadev.vs_logistics.content.fluid_pump;
+package com.fiisadev.vs_logistics.content.fluid_pump.handlers;
 
 import com.fiisadev.vs_logistics.client.utils.HoseUtils;
 import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlockEntity;
-import com.fiisadev.vs_logistics.event.NozzleUseHandler;
+import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlockEntity;
+import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpPlayerDataProvider;
+import com.fiisadev.vs_logistics.content.fluid_pump.IFluidPumpHandler;
+import com.fiisadev.vs_logistics.event.FluidPumpHandler;
 import com.fiisadev.vs_logistics.network.SyncFluidPumpPlayerCapPacket;
 import com.fiisadev.vs_logistics.registry.LogisticsNetwork;
 import net.minecraft.core.BlockPos;
@@ -19,7 +22,7 @@ import net.minecraftforge.network.PacketDistributor;
 import java.util.Optional;
 import java.util.UUID;
 
-public record PlayerUserInfo(FluidPumpBlockEntity fluidPump, Player player) implements IUserInfo {
+public record PlayerHandler(FluidPumpBlockEntity fluidPump, Player player) implements IFluidPumpHandler {
     public boolean is(Object object) {
         return object instanceof Player p && p.is(player);
     }
@@ -32,11 +35,15 @@ public record PlayerUserInfo(FluidPumpBlockEntity fluidPump, Player player) impl
     public Vec3 getHoseEnd(float partialTicks) {
         return player
                 .getPosition(partialTicks)
-                .add(HoseUtils.getNozzleHandlePosition(player, partialTicks));
+                .add(HoseUtils.
+                        getNozzleHandlePosition(player, partialTicks));
     }
 
     public Vec3 getHoseDir(float partialTicks) {
-        return HoseUtils.getNozzleHandleDir(player, partialTicks);
+        float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * partialTicks;
+        return new Vec3(0, 0, 1)
+                .yRot((float)Math.toRadians(-bodyRotation))
+                .normalize();
     }
 
     private Optional<IFluidHandler> getFluidTank() {
@@ -52,13 +59,13 @@ public record PlayerUserInfo(FluidPumpBlockEntity fluidPump, Player player) impl
     }
 
     public void pushFluid() {
-        if (NozzleUseHandler.isNozzleKeyDown(player.getUUID()) && !player.isShiftKeyDown()) {
+        if (FluidPumpHandler.isNozzleKeyDown(player.getUUID()) && !player.isShiftKeyDown()) {
             getFluidTank().ifPresent(fluidPump::pushFluid);
         }
     }
 
     public void pullFluid() {
-        if (NozzleUseHandler.isNozzleKeyDown(player.getUUID()) && !player.isShiftKeyDown()) {
+        if (FluidPumpHandler.isNozzleKeyDown(player.getUUID()) && !player.isShiftKeyDown()) {
             getFluidTank().ifPresent(fluidPump::pullFluid);
         }
     }
@@ -91,7 +98,7 @@ public record PlayerUserInfo(FluidPumpBlockEntity fluidPump, Player player) impl
         });
     }
 
-    public static PlayerUserInfo from(FluidPumpBlockEntity fluidPump, String id, Level level) {
-        return new PlayerUserInfo(fluidPump, level.getPlayerByUUID(UUID.fromString(id)));
+    public static PlayerHandler from(FluidPumpBlockEntity fluidPump, String id, Level level) {
+        return new PlayerHandler(fluidPump, level.getPlayerByUUID(UUID.fromString(id)));
     }
 }

@@ -1,17 +1,21 @@
 package com.fiisadev.vs_logistics.content.fluid_pump;
 
 import com.fiisadev.vs_logistics.client.utils.HoseUtils;
+import com.fiisadev.vs_logistics.content.fluid_pump.handlers.FluidPortHandler;
+import com.fiisadev.vs_logistics.content.fluid_pump.handlers.PlayerHandler;
+import com.fiisadev.vs_logistics.registry.LogisticsIcons;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
+import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.INamedIconOptions;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOptionBehaviour;
 import com.simibubi.create.foundation.fluid.SmartFluidTank;
+import com.simibubi.create.foundation.gui.AllIcons;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
-import net.createmod.catnip.data.Pair;
+import net.createmod.catnip.lang.Lang;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
-import net.createmod.catnip.outliner.Outliner;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,7 +29,6 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.capabilities.Capability;
@@ -46,20 +49,20 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
         super(type, pos, state);
     }
 
-    private @Nullable IUserInfo userInfo;
+    private @Nullable IFluidPumpHandler pumpHandler;
 
-    public @Nullable IUserInfo getUserInfo() {
-        return userInfo;
+    public @Nullable IFluidPumpHandler getPumpHandler() {
+        return pumpHandler;
     }
 
-    public void setUserInfo(IUserInfo userInfo) {
-        if (this.userInfo != null)
-            this.userInfo.onStopUsing();
+    public void setPumpHandler(IFluidPumpHandler pumpHandler) {
+        if (this.pumpHandler != null)
+            this.pumpHandler.onStopUsing();
 
-        this.userInfo = userInfo;
+        this.pumpHandler = pumpHandler;
 
-        if (this.userInfo != null)
-            this.userInfo.onStartUsing();
+        if (this.pumpHandler != null)
+            this.pumpHandler.onStartUsing();
 
         notifyUpdate();
     }
@@ -106,19 +109,19 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
         if (level == null) return;
 
         DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-            if (userInfo == null)
+            if (pumpHandler == null)
                 return;
 
             Direction facing = getBlockState().getValue(FluidPumpBlock.FACING);
 
             Vec3 center = getBlockPos().getCenter();
             Vec3 pumpPos = center.relative(facing, 0.5).add(0, -0.5 + 5 / 16f, 0);
-            Vec3 userPos = userInfo.getHoseEnd(Minecraft.getInstance().getPartialTick());
+            Vec3 userPos = pumpHandler.getHoseEnd(Minecraft.getInstance().getPartialTick());
 
             double dist = pumpPos.distanceTo(userPos);
 
             Vec3 p1 = pumpPos.add(new Vec3(facing.getStepX(), facing.getStepY(), facing.getStepZ()).scale(dist * 0.3f));
-            Vec3 p2 = userPos.subtract(userInfo.getHoseDir(Minecraft.getInstance().getPartialTick()).scale(dist * 0.3f));
+            Vec3 p2 = userPos.subtract(pumpHandler.getHoseDir(Minecraft.getInstance().getPartialTick()).scale(dist * 0.3f));
 
             Vec3[] centers = HoseUtils.generateHoseSegments(pumpPos, userPos, p1, p2, dist);
 
@@ -133,7 +136,7 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
         });
 
         if (!level.isClientSide) {
-            setUserInfo(null);
+            setPumpHandler(null);
         }
     }
 
@@ -167,23 +170,19 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
     public void tick() {
         super.tick();
 
-        if (level == null || level.isClientSide)
-            return;
+        if (level == null || level.isClientSide) return;
+        if (pumpHandler == null) return;
 
-        if (userInfo == null)
-            return;
+        pumpHandler.tick();
 
-        userInfo.tick();
-
-        if (userInfo == null)
-            return;
+        if (pumpHandler == null) return;
 
         if (level.hasNeighborSignal(getBlockPos()))
             return;
 
         switch (getMode()) {
-            case PULL -> userInfo.pullFluid();
-            case PUSH -> userInfo.pushFluid();
+            case SUCTION -> pumpHandler.pullFluid();
+            case DISCHARGE -> pumpHandler.pushFluid();
         }
     }
 
@@ -191,11 +190,8 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
     protected void write(CompoundTag tag, boolean clientPacket) {
         super.write(tag, clientPacket);
 
-        if (userInfo != null) {
-            userInfo.write(tag);
-        } else {
-            tag.remove("UserType");
-            tag.remove("UserId");
+        if (pumpHandler != null) {
+            pumpHandler.write(tag);
         }
     }
 
@@ -203,14 +199,14 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
     protected void read(CompoundTag tag, boolean clientPacket) {
         super.read(tag, clientPacket);
 
-        userInfo = null;
+        pumpHandler = null;
 
         if (level != null && tag.contains("UserType")) {
             switch (tag.getString("UserType")) {
                 case "PLAYER":
-                    userInfo = PlayerUserInfo.from(this, tag.getString("UserId"), level);
+                    pumpHandler = PlayerHandler.from(this, tag.getString("UserId"), level);
                 case "NOZZLE":
-                    userInfo = FluidPortUserInfo.from(this, tag.getString("UserId"), level);
+                    pumpHandler = FluidPortHandler.from(this, tag.getString("UserId"), level);
             }
         }
     }
@@ -253,5 +249,28 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
                 action.accept(fluidPump);
             }
         });
+    }
+
+    public enum PumpMode implements INamedIconOptions {
+        DISCHARGE(LogisticsIcons.I_DISCHARGE),
+        SUCTION(LogisticsIcons.I_SUCTION);
+
+        private final String translationKey;
+        private final AllIcons icon;
+
+        PumpMode(AllIcons icon) {
+            this.icon = icon;
+            translationKey = "block.vs_logistics.pump_mode." + Lang.asId(name());
+        }
+
+        @Override
+        public AllIcons getIcon() {
+            return icon;
+        }
+
+        @Override
+        public String getTranslationKey() {
+            return translationKey;
+        }
     }
 }

@@ -1,5 +1,6 @@
 {
   "creativetab.base": "VS Logistics",
-  "block.vs_logistics.pump_mode.pull": "Pull",
-  "block.vs_logistics.pump_mode.push": "Push"
+  "block.vs_logistics.fluid_pump_mode": "Fluid Pump Mode",
+  "block.vs_logistics.pump_mode.suction": "Suction",
+  "block.vs_logistics.pump_mode.discharge": "Discharge"
 }

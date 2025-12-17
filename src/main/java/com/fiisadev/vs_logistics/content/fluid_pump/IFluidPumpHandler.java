@@ -3,7 +3,7 @@ package com.fiisadev.vs_logistics.content.fluid_pump;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.phys.Vec3;
 
-public interface IUserInfo {
+public interface IFluidPumpHandler {
     boolean is(Object object);
 
     void write(CompoundTag tag);

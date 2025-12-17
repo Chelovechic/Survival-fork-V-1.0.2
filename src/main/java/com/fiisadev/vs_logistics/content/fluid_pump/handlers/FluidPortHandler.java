@@ -1,7 +1,9 @@
-package com.fiisadev.vs_logistics.content.fluid_pump;
+package com.fiisadev.vs_logistics.content.fluid_pump.handlers;
 
 import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlock;
 import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlockEntity;
+import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlockEntity;
+import com.fiisadev.vs_logistics.content.fluid_pump.IFluidPumpHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -10,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
-public record FluidPortUserInfo(FluidPumpBlockEntity fluidPump, FluidPortBlockEntity fluidPort) implements IUserInfo {
+public record FluidPortHandler(FluidPumpBlockEntity fluidPump, FluidPortBlockEntity fluidPort) implements IFluidPumpHandler {
     public boolean is(Object object) {
         return fluidPort.equals(object);
     }
@@ -57,11 +59,15 @@ public record FluidPortUserInfo(FluidPumpBlockEntity fluidPump, FluidPortBlockEn
         fluidPump.pullFluid(fluidPort.getFirstTank());
     }
 
-    public void onStopUsing() {
-        fluidPort.setFluidPump(null);
+    public void onStartUsing() {
+        fluidPort.setFluidPumpPos(fluidPump.getBlockPos());
     }
 
-    public static FluidPortUserInfo from(FluidPumpBlockEntity fluidPump, String id, Level level) {
-        return level.getBlockEntity(BlockPos.of(Long.parseLong(id))) instanceof FluidPortBlockEntity be ? new FluidPortUserInfo(fluidPump, be) : null;
+    public void onStopUsing() {
+        fluidPort.setFluidPumpPos(null);
+    }
+
+    public static FluidPortHandler from(FluidPumpBlockEntity fluidPump, String id, Level level) {
+        return level.getBlockEntity(BlockPos.of(Long.parseLong(id))) instanceof FluidPortBlockEntity be ? new FluidPortHandler(fluidPump, be) : null;
     }
 }

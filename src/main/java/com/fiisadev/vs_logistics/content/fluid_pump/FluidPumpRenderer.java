@@ -32,7 +32,7 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
     protected void renderSafe(FluidPumpBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
         Minecraft mc = Minecraft.getInstance();
 
-        if (be.getUserInfo() == null)
+        if (be.getPumpHandler() == null)
             return;
 
         ms.pushPose();
@@ -45,12 +45,12 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
 
         Vec3 center = be.getBlockPos().getCenter();
         Vec3 pumpPos = center.relative(facing, 0.5).add(0, -0.5 + 5 / 16f, 0);
-        Vec3 userPos = be.getUserInfo().getHoseEnd(partialTicks);
+        Vec3 userPos = be.getPumpHandler().getHoseEnd(partialTicks);
 
         double dist = pumpPos.distanceTo(userPos);
 
         Vec3 p1 = pumpPos.add(new Vec3(facing.getStepX(), facing.getStepY(), facing.getStepZ()).scale(dist * 0.3f));
-        Vec3 p2 = userPos.subtract(be.getUserInfo().getHoseDir(partialTicks).scale(dist * 0.3f));
+        Vec3 p2 = userPos.subtract(be.getPumpHandler().getHoseDir(partialTicks).scale(dist * 0.3f));
 
         renderCurvedHose(builder, ms, pumpPos, userPos, p1, p2, dist, origin);
         ms.popPose();
