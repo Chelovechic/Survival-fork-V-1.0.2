@@ -1,5 +1,6 @@
 package com.fiisadev.vs_logistics.content.fluid_port;
 
+import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlockEntity;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.managers.JointManager;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
@@ -12,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -31,9 +33,11 @@ import org.valkyrienskies.mod.common.VSGameUtilsKt;
 import java.util.*;
 
 public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
-    private Set<BlockPos> targetSet = new HashSet<>();
+    private final Set<BlockPos> targetSet = new HashSet<>();
 
+    @Nullable
     private FluidPortFluidHandler fluidHandler;
+
     private LazyOptional<IFluidHandler> fluidCapability = LazyOptional.empty();
 
     private final List<FluidPortFluidHandler.AggregatedFluid> cachedFluids = new ArrayList<>();
@@ -41,9 +45,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
     @Nullable
     private BlockPos fluidPumpPos;
 
+    private static final int SYNC_RATE = 8;
+    protected int syncCooldown;
+    protected boolean queuedSync;
+
     public FluidPortBlockEntity(BlockEntityType<?> pType, BlockPos pPos, BlockState pBlockState) {
         super(pType, pPos, pBlockState);
-        setLazyTickRate(20);
     }
 
     public @Nullable BlockPos getFluidPumpPos() {
@@ -52,7 +59,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
     public void setFluidPumpPos(BlockPos fluidPumpPos) {
         this.fluidPumpPos = fluidPumpPos;
-        notifyUpdate();
+        sendDataImmediately();
     }
 
     public Set<BlockPos> getTargets() {
@@ -78,15 +85,37 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
             return;
 
         targetSet.add(pos);
-        notifyUpdate();
+        sendDataImmediately();
     }
 
     public void removeTarget(BlockPos pos) {
         targetSet.remove(pos);
-        notifyUpdate();
+        sendDataImmediately();
     }
 
-    public IFluidHandler getFluidHandler() {
+    @Override
+    public void tick() {
+        super.tick();
+        if (syncCooldown > 0) {
+            syncCooldown--;
+            if (syncCooldown == 0 && queuedSync)
+                sendData();
+        }
+
+        if (level != null && !level.isClientSide) {
+            if (fluidPumpPos == null) return;
+
+            if (level.getBlockEntity(fluidPumpPos) instanceof FluidPumpBlockEntity fluidPump) {
+                if (fluidPump.getPumpHandler() == null || !fluidPump.getPumpHandler().is(this)) {
+                    setFluidPumpPos(null);
+                }
+            } else {
+                setFluidPumpPos(null);
+            }
+        }
+    }
+
+    public @Nullable IFluidHandler getFluidHandler() {
         return fluidHandler;
     }
 
@@ -95,14 +124,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.read(tag, clientPacket);
 
         if (tag.contains("FluidPumpPos"))
-            fluidPumpPos = BlockPos.of(tag.getLong("FluidPumpPos"));
-        else
-            fluidPumpPos = null;
+            fluidPumpPos = NbtUtils.readBlockPos(tag.getCompound("FluidPumpPos"));
 
-        targetSet = new HashSet<>();
-        for (long pos : tag.getLongArray("TargetSet")) {
-            targetSet.add(BlockPos.of(pos));
-        }
+        targetSet.clear();
+        ListTag targets = tag.getList("Targets", Tag.TAG_COMPOUND);
+        for (Tag target : targets)
+            targetSet.add(NbtUtils.readBlockPos((CompoundTag)target));
 
         cachedFluids.clear();
         ListTag list = tag.getList("Fluids", Tag.TAG_COMPOUND);
@@ -119,9 +146,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.write(tag, clientPacket);
 
         if (fluidPumpPos != null)
-            tag.putLong("FluidPumpPos", fluidPumpPos.asLong());
+            tag.put("FluidPumpPos", NbtUtils.writeBlockPos(fluidPumpPos));
 
-        tag.putLongArray("TargetSet", targetSet.stream().map(BlockPos::asLong).toList());
+        ListTag targets = new ListTag();
+        for (BlockPos target : targetSet)
+            targets.add(NbtUtils.writeBlockPos(target));
+        tag.put("Targets", targets);
 
         if (fluidHandler != null) {
             ListTag list = new ListTag();
@@ -135,6 +165,23 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
     }
 
+    public void sendDataImmediately() {
+        syncCooldown = 0;
+        queuedSync = false;
+        sendData();
+    }
+
+    @Override
+    public void sendData() {
+        if (syncCooldown > 0) {
+            queuedSync = true;
+            return;
+        }
+        super.sendData();
+        queuedSync = false;
+        syncCooldown = SYNC_RATE;
+    }
+
     @Override
     public void onLoad() {
         super.onLoad();
@@ -143,6 +190,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
             fluidHandler = new FluidPortFluidHandler(targetSet, level, this::onFluidStackChanged);
             fluidCapability = LazyOptional.of(() -> fluidHandler);
         }
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        fluidCapability.invalidate();
     }
 
     private void onFluidStackChanged() {
@@ -157,21 +210,6 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
 
         return super.getCapability(cap, side);
-    }
-
-    @Override
-    public void invalidateCaps() {
-        super.invalidateCaps();
-        fluidCapability.invalidate();
-    }
-
-    @Override
-    public void lazyTick() {
-        // Update every 20 ticks to update goggle tooltip
-        if (level == null || level.isClientSide)
-            return;
-
-        notifyUpdate();
     }
 
     @Override

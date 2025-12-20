@@ -90,9 +90,8 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     private void onFluidStackChange(FluidStack fluidStack) {
-        if (level != null && !level.isClientSide) {
+        if (level != null && !level.isClientSide)
             notifyUpdate();
-        }
     }
 
     private ScrollOptionBehaviour<PumpMode> pumpMode;
@@ -111,10 +110,10 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
     public void breakHose() {
         if (level == null) return;
 
-        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
-            if (pumpHandler == null)
-                return;
+        if (pumpHandler == null)
+            return;
 
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
             Direction facing = getBlockState().getValue(FluidPumpBlock.FACING);
 
             Vec3 center = getBlockPos().getCenter();
@@ -126,13 +125,13 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
             Vec3 p1 = pumpPos.add(new Vec3(facing.getStepX(), facing.getStepY(), facing.getStepZ()).scale(dist * 0.3f));
             Vec3 p2 = userPos.subtract(pumpHandler.getHoseDir(Minecraft.getInstance().getPartialTick()).scale(dist * 0.3f));
 
-            Vec3[] centers = HoseUtils.generateHoseSegments(pumpPos, userPos, p1, p2, dist);
+            Vec3[] segments = HoseUtils.generateHoseSegments(pumpPos, userPos, p1, p2, dist);
 
             Minecraft.getInstance().player.playSound(SoundEvents.WOOL_PLACE, 1.0f, 1.0f);
-            for (Vec3 pos : centers) {
+            for (Vec3 segment : segments) {
                 Minecraft.getInstance().level.addParticle(
                         new BlockParticleOption(ParticleTypes.BLOCK, Blocks.BLACK_WOOL.defaultBlockState()),
-                        pos.x, pos.y, pos.z,
+                        segment.x, segment.y, segment.z,
                         0, 0.05f, 0
                 );
             }
@@ -143,7 +142,7 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
     }
 
-    public void pushFluid(IFluidHandler dest) {
+    public void pushFluid(@NotNull IFluidHandler dest) {
         FluidStack simulatedExtract = fluidTank.drain(60, IFluidHandler.FluidAction.SIMULATE);
         if (simulatedExtract.isEmpty()) return;
 
@@ -156,7 +155,7 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
         dest.fill(realExtract, IFluidHandler.FluidAction.EXECUTE);
     }
 
-    public void pullFluid(IFluidHandler source) {
+    public void pullFluid(@NotNull IFluidHandler source) {
         FluidStack simulatedExtract = source.drain(60, IFluidHandler.FluidAction.SIMULATE);
         if (simulatedExtract.isEmpty()) return;
 
@@ -210,8 +209,12 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
             switch (tag.getString("UserType")) {
                 case "PLAYER":
                     setPumpHandler(new PlayerHandler(this, UUID.fromString(tag.getString("UserId"))));
-                case "NOZZLE":
+                    break;
+                case "FLUID_PORT":
                     setPumpHandler(new FluidPortHandler(this, BlockPos.of(Long.parseLong(tag.getString("UserId")))));
+                    break;
+                default:
+                    break;
             }
         } else {
             setPumpHandler(null);
