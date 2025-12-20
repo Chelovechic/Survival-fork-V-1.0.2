@@ -54,7 +54,7 @@ public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE
 
     @Override
     public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!level.isClientSide) {
+        if (!level.isClientSide && hand == InteractionHand.MAIN_HAND) {
             AtomicBoolean shouldReturn = new AtomicBoolean();
             withBlockEntityDo(level, pos, (be) -> {
                 if (!player.isShiftKeyDown())
@@ -63,10 +63,11 @@ public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE
                 player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
                     boolean canPickNozzle = be.getFluidPumpPos() != null && playerData.getFluidPumpPos() == null;
                     boolean canInsertNozzle = be.getFluidPumpPos() == null && playerData.getFluidPumpPos() != null;
+                    shouldReturn.set(canPickNozzle || canInsertNozzle);
 
                     if (canPickNozzle) {
                         FluidPumpBlockEntity.withBlockEntityDo(level, be.getFluidPumpPos(), (fluidPump) ->
-                            fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player))
+                                fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player))
                         );
                     }
 
@@ -75,12 +76,11 @@ public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE
                             fluidPump.setPumpHandler(new FluidPortHandler(fluidPump, be))
                         );
                     }
-
-                    shouldReturn.set(canPickNozzle || canInsertNozzle);
                 });
             });
 
-            if (shouldReturn.get()) return InteractionResult.SUCCESS;
+            if (shouldReturn.get())
+                return InteractionResult.SUCCESS;
         }
 
         ItemStack heldItem = player.getItemInHand(hand);

@@ -1,6 +1,7 @@
 package com.fiisadev.vs_logistics;
 
 import com.fiisadev.vs_logistics.registry.*;
+import com.fiisadev.vs_logistics.managers.JointManager;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
@@ -18,8 +19,7 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
-
-import static net.createmod.catnip.lang.FontHelper.styleFromColor;
+import org.valkyrienskies.mod.api.ValkyrienSkies;
 
 @Mod(VSLogistics.MOD_ID)
 public class VSLogistics {
@@ -48,6 +48,7 @@ public class VSLogistics {
         MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
         modEventBus.addListener(this::commonSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        ValkyrienSkies.api().getPhysTickEvent().on(JointManager::onPhysicsTick);
     }
 
     public void commonSetup(final FMLCommonSetupEvent event) {

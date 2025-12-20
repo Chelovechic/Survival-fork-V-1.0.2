@@ -38,10 +38,7 @@ public class FluidPortPacket {
             if (sender == null) return;
 
             if (sender.level().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort) {
-                BlockEntity targetBE = sender.level().getBlockEntity(targetPos);
-
-                if (FluidPortBlock.isValidTarget(targetBE))
-                    fluidPort.addTarget(targetPos);
+                fluidPort.addTarget(targetPos);
             }
         });
 

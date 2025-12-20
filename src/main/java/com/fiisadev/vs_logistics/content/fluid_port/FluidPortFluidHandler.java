@@ -13,7 +13,7 @@ import java.util.*;
 public class FluidPortFluidHandler implements IFluidHandler {
     private final Level level;
     private final Set<BlockPos> targetSet;
-    private Runnable updateCallback;
+    private final Runnable updateCallback;
 
     public FluidPortFluidHandler(Set<BlockPos> targetSet, Level level, Runnable updateCallback) {
         this.targetSet = targetSet;

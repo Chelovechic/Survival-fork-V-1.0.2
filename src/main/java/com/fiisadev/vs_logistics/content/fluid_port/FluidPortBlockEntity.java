@@ -1,5 +1,7 @@
 package com.fiisadev.vs_logistics.content.fluid_port;
 
+import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
+import com.fiisadev.vs_logistics.managers.JointManager;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -12,6 +14,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,6 +25,8 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.valkyrienskies.core.api.ships.ServerShip;
+import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
 import java.util.*;
 
@@ -31,8 +36,9 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
     private FluidPortFluidHandler tankInventory;
     private LazyOptional<IFluidHandler> fluidCapability = LazyOptional.empty();
 
-    private List<FluidPortFluidHandler.AggregatedFluid> cachedFluids = new ArrayList<>();
+    private final List<FluidPortFluidHandler.AggregatedFluid> cachedFluids = new ArrayList<>();
 
+    @Nullable
     private BlockPos fluidPumpPos;
 
     public FluidPortBlockEntity(BlockEntityType<?> pType, BlockPos pPos, BlockState pBlockState) {
@@ -40,7 +46,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         setLazyTickRate(20);
     }
 
-    public BlockPos getFluidPumpPos() {
+    public @Nullable BlockPos getFluidPumpPos() {
         return fluidPumpPos;
     }
 
@@ -53,9 +59,26 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return Set.copyOf(targetSet);
     }
 
-    public void addTarget(BlockPos pos) {
+    public boolean isValidTarget(BlockPos pos) {
+        if (!(level instanceof ServerLevel serverLevel) || pos == null) return false;
+        BlockEntity be = level.getBlockEntity(pos);
+        if (be == null) return false;
+        if (be.getBlockState().is(LogisticsBlocks.FLUID_PORT.get())) return false;
+        if (!be.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent()) return false;
+        ServerShip shipA = VSGameUtilsKt.getShipManagingPos(serverLevel, getBlockPos());
+        ServerShip shipB = VSGameUtilsKt.getShipManagingPos(serverLevel, pos);
+        if (shipA == null || shipB == null) return false;
+        if (shipA.getId() == shipB.getId()) return true;
+        return JointManager.isShipConnectedToShip(shipB, shipA);
+    }
+
+    public boolean addTarget(BlockPos pos) {
+        if (!isValidTarget(pos))
+            return false;
+
         targetSet.add(pos);
         notifyUpdate();
+        return true;
     }
 
     public void removeTarget(BlockPos pos) {
