@@ -3,7 +3,6 @@ package com.fiisadev.vs_logistics.content.fluid_port;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.managers.JointManager;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
-import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -34,7 +33,7 @@ import java.util.*;
 public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
     private Set<BlockPos> targetSet = new HashSet<>();
 
-    private FluidPortFluidHandler tankInventory;
+    private FluidPortFluidHandler fluidHandler;
     private LazyOptional<IFluidHandler> fluidCapability = LazyOptional.empty();
 
     private final List<FluidPortFluidHandler.AggregatedFluid> cachedFluids = new ArrayList<>();
@@ -74,13 +73,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return JointManager.isShipConnectedToShip(shipB, shipA);
     }
 
-    public boolean addTarget(BlockPos pos) {
+    public void addTarget(BlockPos pos) {
         if (!isValidTarget(pos))
-            return false;
+            return;
 
         targetSet.add(pos);
         notifyUpdate();
-        return true;
     }
 
     public void removeTarget(BlockPos pos) {
@@ -89,7 +87,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     public IFluidHandler getFluidHandler() {
-        return tankInventory;
+        return fluidHandler;
     }
 
     @Override
@@ -125,14 +123,16 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
         tag.putLongArray("TargetSet", targetSet.stream().map(BlockPos::asLong).toList());
 
-        ListTag list = new ListTag();
-        for (int i = 0; i < tankInventory.getTanks(); i++) {
-            CompoundTag t = new CompoundTag();
-            tankInventory.getFluidInTank(i).writeToNBT(t);
-            t.putInt("Capacity", tankInventory.getTankCapacity(i));
-            list.add(t);
+        if (fluidHandler != null) {
+            ListTag list = new ListTag();
+            for (int i = 0; i < fluidHandler.getTanks(); i++) {
+                CompoundTag t = new CompoundTag();
+                fluidHandler.getFluidInTank(i).writeToNBT(t);
+                t.putInt("Capacity", fluidHandler.getTankCapacity(i));
+                list.add(t);
+            }
+            tag.put("Fluids", list);
         }
-        tag.put("Fluids", list);
     }
 
     @Override
@@ -140,8 +140,8 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.onLoad();
 
         if (fluidCapability == null || !fluidCapability.isPresent()) {
-            tankInventory = new FluidPortFluidHandler(targetSet, level, this::onFluidStackChanged);
-            fluidCapability = LazyOptional.of(() -> tankInventory);
+            fluidHandler = new FluidPortFluidHandler(targetSet, level, this::onFluidStackChanged);
+            fluidCapability = LazyOptional.of(() -> fluidHandler);
         }
     }
 

@@ -1,10 +1,12 @@
 package com.fiisadev.vs_logistics.content.fluid_pump;
 
 import com.fiisadev.vs_logistics.client.utils.HoseUtils;
+import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlockEntity;
 import com.fiisadev.vs_logistics.content.fluid_pump.handlers.FluidPortHandler;
 import com.fiisadev.vs_logistics.content.fluid_pump.handlers.PlayerHandler;
 import com.fiisadev.vs_logistics.registry.LogisticsIcons;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
@@ -24,6 +26,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Blocks;
@@ -42,9 +45,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Consumer;
 
-public class FluidPumpBlockEntity extends SmartBlockEntity {
+public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
     public FluidPumpBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -87,8 +91,7 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
 
     private void onFluidStackChange(FluidStack fluidStack) {
         if (level != null && !level.isClientSide) {
-            sendData();
-            setChanged();
+            notifyUpdate();
         }
     }
 
@@ -199,16 +202,26 @@ public class FluidPumpBlockEntity extends SmartBlockEntity {
     protected void read(CompoundTag tag, boolean clientPacket) {
         super.read(tag, clientPacket);
 
-        pumpHandler = null;
-
-        if (level != null && tag.contains("UserType")) {
+        if (tag.contains("UserType")) {
             switch (tag.getString("UserType")) {
                 case "PLAYER":
-                    pumpHandler = PlayerHandler.from(this, tag.getString("UserId"), level);
+                    setPumpHandler(new PlayerHandler(this, UUID.fromString(tag.getString("UserId"))));
+                    break;
                 case "NOZZLE":
-                    pumpHandler = FluidPortHandler.from(this, tag.getString("UserId"), level);
+                    setPumpHandler(new FluidPortHandler(this, BlockPos.of(Long.parseLong(tag.getString("UserId")))));
+                    break;
+                default:
+                    break;
             }
+        } else {
+            setPumpHandler(null);
         }
+    }
+
+    @Override
+    public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+        if (level == null) return false;
+        return containedFluidTooltip(tooltip, isPlayerSneaking, fluidCapability);
     }
 
     static class PumpValueBox extends ValueBoxTransform.Sided {

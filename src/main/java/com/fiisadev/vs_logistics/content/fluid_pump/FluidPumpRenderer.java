@@ -30,8 +30,6 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
 
     @Override
     protected void renderSafe(FluidPumpBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-        Minecraft mc = Minecraft.getInstance();
-
         if (be.getPumpHandler() == null)
             return;
 

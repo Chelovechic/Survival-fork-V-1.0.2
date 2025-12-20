@@ -12,18 +12,22 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
-public record FluidPortHandler(FluidPumpBlockEntity fluidPump, FluidPortBlockEntity fluidPort) implements IFluidPumpHandler {
-    public boolean is(Object object) {
-        return fluidPort.equals(object);
-    }
+public record FluidPortHandler(FluidPumpBlockEntity fluidPump, BlockPos fluidPortPos) implements IFluidPumpHandler {
+    public boolean is(Object object) { return object instanceof FluidPortBlockEntity fluidPort && fluidPort.getBlockPos().equals(fluidPortPos); }
 
     public void write(CompoundTag tag) {
         tag.putString("UserType", "NOZZLE");
-        tag.putString("UserId", Long.toString(fluidPort.getBlockPos().asLong()));
+        tag.putString("UserId", Long.toString(fluidPortPos.asLong()));
     }
 
     public Vec3 getHoseEnd(float partialTicks) {
-        Level level = fluidPort.getLevel();
+        if (fluidPump.getLevel() == null)
+            return Vec3.ZERO;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return Vec3.ZERO;
+
+        Level level = fluidPump.getLevel();
         BlockPos blockPos = fluidPort.getBlockPos();
         Direction facing = fluidPort.getBlockState().getValue(FluidPortBlock.FACING);
 
@@ -36,13 +40,18 @@ public record FluidPortHandler(FluidPumpBlockEntity fluidPump, FluidPortBlockEnt
     }
 
     public Vec3 getHoseDir(float partialTicks) {
-        Level level = fluidPort.getLevel();
+        if (fluidPump.getLevel() == null)
+            return Vec3.ZERO;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return Vec3.ZERO;
+
         BlockPos blockPos = fluidPort.getBlockPos();
         Direction facing = fluidPort.getBlockState().getValue(FluidPortBlock.FACING);
 
         Vec3 dir = Vec3.atLowerCornerOf(facing.getNormal()).scale(-1);
 
-        var ship = VSGameUtilsKt.getShipManagingPos(level, blockPos);
+        var ship = VSGameUtilsKt.getShipManagingPos(fluidPump.getLevel(), blockPos);
         if (ship != null) {
             Vector3d worldDir = ship.getTransform().getShipToWorldRotation().transform(new Vector3d(dir.x, dir.y, dir.z));
             return new Vec3(worldDir.x, worldDir.y, worldDir.z);
@@ -52,22 +61,52 @@ public record FluidPortHandler(FluidPumpBlockEntity fluidPump, FluidPortBlockEnt
     }
 
     public void pushFluid() {
+        if (fluidPump.getLevel() == null)
+            return;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return;
+
         fluidPump.pushFluid(fluidPort.getFluidHandler());
     }
 
     public void pullFluid() {
+        if (fluidPump.getLevel() == null)
+            return;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return;
+
         fluidPump.pullFluid(fluidPort.getFluidHandler());
     }
 
     public void onStartUsing() {
+        if (fluidPump.getLevel() == null)
+            return;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return;
+
         fluidPort.setFluidPumpPos(fluidPump.getBlockPos());
     }
 
     public void onStopUsing() {
+        if (fluidPump.getLevel() == null)
+            return;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return;
+
         fluidPort.setFluidPumpPos(null);
     }
 
     public void tick() {
+        if (fluidPump.getLevel() == null)
+            return;
+
+        if (!(fluidPump.getLevel().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort))
+            return;
+
         Vec3 pos = fluidPort.getBlockPos().getCenter();
 
         if (VSGameUtilsKt.getShipManagingPos(fluidPort.getLevel(), fluidPort.getBlockPos()) != null) {
@@ -77,9 +116,5 @@ public record FluidPortHandler(FluidPumpBlockEntity fluidPump, FluidPortBlockEnt
         if (pos.distanceToSqr(fluidPump.getBlockPos().getCenter()) > Math.pow(24, 2)) {
             fluidPump.breakHose();
         }
-    }
-
-    public static FluidPortHandler from(FluidPumpBlockEntity fluidPump, String id, Level level) {
-        return level.getBlockEntity(BlockPos.of(Long.parseLong(id))) instanceof FluidPortBlockEntity be ? new FluidPortHandler(fluidPump, be) : null;
     }
 }

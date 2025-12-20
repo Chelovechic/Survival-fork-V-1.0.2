@@ -23,7 +23,6 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DirectionalBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -39,12 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE<FluidPortBlockEntity> {
     public FluidPortBlock(Properties properties) {
         super(properties);
-    }
-
-    public static boolean isValidTarget(BlockEntity be) {
-        if (be == null) return false;
-        if (be instanceof FluidPortBlockEntity) return false;
-        return be.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent();
     }
 
     @Override
@@ -67,13 +60,13 @@ public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE
 
                     if (canPickNozzle) {
                         FluidPumpBlockEntity.withBlockEntityDo(level, be.getFluidPumpPos(), (fluidPump) ->
-                                fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player))
+                                fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player.getUUID()))
                         );
                     }
 
                     if (canInsertNozzle) {
                         FluidPumpBlockEntity.withBlockEntityDo(level, playerData.getFluidPumpPos(), (fluidPump) ->
-                            fluidPump.setPumpHandler(new FluidPortHandler(fluidPump, be))
+                            fluidPump.setPumpHandler(new FluidPortHandler(fluidPump, be.getBlockPos()))
                         );
                     }
                 });

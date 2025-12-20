@@ -8,7 +8,6 @@ import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpPlayerDataProvider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -28,13 +27,6 @@ public class FluidPumpHandler {
     private static boolean preventEvent(Player player) {
         LazyOptional<FluidPumpPlayerData> cap = player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA);
         return cap.resolve().map((playerData) -> playerData.getFluidPumpPos() != null).orElse(false);
-    }
-
-    @SubscribeEvent
-    public static void onPlayerDisconnect(PlayerEvent.PlayerLoggedOutEvent event) {
-        event.getEntity().getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
-            FluidPumpBlockEntity.withBlockEntityDo(event.getEntity().level(), playerData.getFluidPumpPos(), FluidPumpBlockEntity::breakHose);
-        });
     }
 
     @SubscribeEvent
