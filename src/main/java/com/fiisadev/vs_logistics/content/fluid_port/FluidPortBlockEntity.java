@@ -3,6 +3,7 @@ package com.fiisadev.vs_logistics.content.fluid_port;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.managers.JointManager;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
+import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -65,6 +66,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (be == null) return false;
         if (be.getBlockState().is(LogisticsBlocks.FLUID_PORT.get())) return false;
         if (!be.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent()) return false;
+
         ServerShip shipA = VSGameUtilsKt.getShipManagingPos(serverLevel, getBlockPos());
         ServerShip shipB = VSGameUtilsKt.getShipManagingPos(serverLevel, pos);
         if (shipA == null || shipB == null) return false;

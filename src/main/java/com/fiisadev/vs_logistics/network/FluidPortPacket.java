@@ -1,11 +1,10 @@
 package com.fiisadev.vs_logistics.network;
 
-import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlock;
 import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlockEntity;
+import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
@@ -38,7 +37,15 @@ public class FluidPortPacket {
             if (sender == null) return;
 
             if (sender.level().getBlockEntity(fluidPortPos) instanceof FluidPortBlockEntity fluidPort) {
-                fluidPort.addTarget(targetPos);
+                BlockPos target = targetPos;
+                if (sender.level().getBlockEntity(targetPos) instanceof IMultiBlockEntityContainer.Fluid multiBlock)
+                    target = multiBlock.getController();
+
+                if (fluidPort.getTargets().contains(target)) {
+                    fluidPort.removeTarget(target);
+                } else {
+                    fluidPort.addTarget(target);
+                }
             }
         });
 

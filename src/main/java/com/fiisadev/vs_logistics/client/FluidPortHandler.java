@@ -6,15 +6,21 @@ import com.fiisadev.vs_logistics.network.FluidPortPacket;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.registry.LogisticsNetwork;
 import com.simibubi.create.AllItems;
+import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import net.createmod.catnip.data.Pair;
 import net.createmod.catnip.outliner.Outliner;
 import net.createmod.catnip.theme.Color;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -33,6 +39,8 @@ public class FluidPortHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getHand() != InteractionHand.MAIN_HAND || event.getLevel().isClientSide) return;
+
         BlockPos pos = event.getPos();
         Player player = event.getEntity();
         Level level = event.getLevel();
@@ -49,7 +57,7 @@ public class FluidPortHandler {
         BlockEntity be = level.getBlockEntity(pos);
         if (be == null) return;
 
-        if (selectedSource != null && FluidPortBlock.isValidTarget(be)) {
+        if (selectedSource != null) {
             LogisticsNetwork.CHANNEL.sendToServer(new FluidPortPacket(selectedSource, pos));
             event.setCanceled(true);
         }
@@ -75,8 +83,28 @@ public class FluidPortHandler {
                 .colored(Color.SPRING_GREEN);
 
             for (BlockPos pos : fluidPort.getTargets()) {
-                outliner.showLine(Pair.of(Pair.of("connection", selectedSource), pos), selectedSource.getCenter(), pos.getCenter());
-                outliner.showAABB(Pair.of(Pair.of("target", selectedSource), pos), AABB.unitCubeFromLowerCorner(Vec3.atLowerCornerOf(pos)))
+                AABB aabb = AABB.unitCubeFromLowerCorner(Vec3.atLowerCornerOf(pos));
+                Vec3 center = pos.getCenter();
+
+                if (player.level().getBlockEntity(pos) instanceof IMultiBlockEntityContainer.Fluid multiBlock) {
+                    Vec3 size = new Vec3(multiBlock.getWidth(), multiBlock.getHeight(), multiBlock.getWidth());
+
+                    BlockState state = multiBlock.getControllerBE().getBlockState();
+                    if (state.hasProperty(BlockStateProperties.HORIZONTAL_AXIS)) {
+                        Direction.Axis axis = state.getValue(BlockStateProperties.HORIZONTAL_AXIS);
+
+                        if (axis == Direction.Axis.X)
+                            size.zRot(90);
+                        if (axis == Direction.Axis.Z)
+                            size.xRot(90);
+                    }
+
+                    aabb = new AABB(0, 0, 0, size.x, size.y, size.z).move(Vec3.atLowerCornerOf(pos));
+                    center = Vec3.atLowerCornerOf(multiBlock.getController());
+                }
+
+                outliner.showLine(Pair.of(Pair.of("connection", selectedSource), pos), selectedSource.getCenter(), center);
+                outliner.showAABB(Pair.of(Pair.of("target", selectedSource), pos), aabb)
                         .lineWidth(1 / 16f)
                         .colored(ChatFormatting.YELLOW.getColor());
             }
