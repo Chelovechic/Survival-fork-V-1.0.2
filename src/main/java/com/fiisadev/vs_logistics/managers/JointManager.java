@@ -21,8 +21,6 @@ public class JointManager {
     }
 
     private static boolean isShipConnectedToShip(Ship target, Ship current, Set<Long> visitedShips) {
-        System.out.println((physLevel != null) + " " + current.getId() + " " + target.getId());
-
         if (visitedShips.contains(current.getId()))
             return false;
 

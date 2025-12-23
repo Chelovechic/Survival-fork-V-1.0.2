@@ -1,7 +1,7 @@
 package com.fiisadev.vs_logistics.client;
 
-import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlock;
 import com.fiisadev.vs_logistics.content.fluid_port.FluidPortBlockEntity;
+import com.fiisadev.vs_logistics.content.fluid_port.FluidPortTarget;
 import com.fiisadev.vs_logistics.network.FluidPortPacket;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.registry.LogisticsNetwork;
@@ -10,11 +10,9 @@ import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import net.createmod.catnip.data.Pair;
 import net.createmod.catnip.outliner.Outliner;
 import net.createmod.catnip.theme.Color;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -39,7 +37,7 @@ public class FluidPortHandler {
 
     @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.getHand() != InteractionHand.MAIN_HAND || event.getLevel().isClientSide) return;
+        if (event.getHand() != InteractionHand.MAIN_HAND || !event.getLevel().isClientSide) return;
 
         BlockPos pos = event.getPos();
         Player player = event.getEntity();
@@ -49,7 +47,6 @@ public class FluidPortHandler {
         if (level.getBlockState(pos).is(LogisticsBlocks.FLUID_PORT.get())) {
             if (isHoldingWrench && !player.isShiftKeyDown()) {
                 selectedSource = pos;
-                event.setCanceled(true);
                 return;
             }
         }
@@ -59,7 +56,6 @@ public class FluidPortHandler {
 
         if (selectedSource != null) {
             LogisticsNetwork.CHANNEL.sendToServer(new FluidPortPacket(selectedSource, pos));
-            event.setCanceled(true);
         }
     }
 
@@ -82,7 +78,8 @@ public class FluidPortHandler {
                 .lineWidth(1 / 16f)
                 .colored(Color.SPRING_GREEN);
 
-            for (BlockPos pos : fluidPort.getTargets()) {
+            for (FluidPortTarget target : fluidPort.getTargets().values()) {
+                BlockPos pos = target.getPos();
                 AABB aabb = AABB.unitCubeFromLowerCorner(Vec3.atLowerCornerOf(pos));
                 Vec3 center = pos.getCenter();
 
@@ -106,7 +103,7 @@ public class FluidPortHandler {
                 outliner.showLine(Pair.of(Pair.of("connection", selectedSource), pos), selectedSource.getCenter(), center);
                 outliner.showAABB(Pair.of(Pair.of("target", selectedSource), pos), aabb)
                         .lineWidth(1 / 16f)
-                        .colored(ChatFormatting.YELLOW.getColor());
+                        .colored(target.getMode().color);
             }
         }
     }

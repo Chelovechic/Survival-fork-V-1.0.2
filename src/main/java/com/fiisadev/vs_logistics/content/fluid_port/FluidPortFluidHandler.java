@@ -12,11 +12,11 @@ import java.util.*;
 
 public class FluidPortFluidHandler implements IFluidHandler {
     private final Level level;
-    private final Set<BlockPos> targetSet;
+    private final Map<BlockPos, FluidPortTarget> targetMap;
     private final Runnable updateCallback;
 
-    public FluidPortFluidHandler(Set<BlockPos> targetSet, Level level, Runnable updateCallback) {
-        this.targetSet = targetSet;
+    public FluidPortFluidHandler(Map<BlockPos, FluidPortTarget> targetMap, Level level, Runnable updateCallback) {
+        this.targetMap = targetMap;
         this.level = level;
         this.updateCallback = updateCallback;
     }
@@ -24,8 +24,8 @@ public class FluidPortFluidHandler implements IFluidHandler {
     private List<IFluidHandler> getHandlers() {
         List<IFluidHandler> handlers = new ArrayList<>();
 
-        for (BlockPos target : targetSet) {
-            BlockEntity be = level.getBlockEntity(target);
+        for (FluidPortTarget target : targetMap.values()) {
+            BlockEntity be = level.getBlockEntity(target.getPos());
             if (be == null) continue;
             be.getCapability(ForgeCapabilities.FLUID_HANDLER).ifPresent(handlers::add);
         }

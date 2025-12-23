@@ -1,9 +1,9 @@
 package com.fiisadev.vs_logistics.content.fluid_port;
 
-import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpBlockEntity;
 import com.fiisadev.vs_logistics.registry.LogisticsBlocks;
 import com.fiisadev.vs_logistics.managers.JointManager;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
+import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -30,10 +30,13 @@ import org.jetbrains.annotations.Nullable;
 import org.valkyrienskies.core.api.ships.ServerShip;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
-    private final Set<BlockPos> targetSet = new HashSet<>();
+    private final Map<BlockPos, FluidPortTarget> targetMap = new HashMap<>();
 
     @Nullable
     private FluidPortFluidHandler fluidHandler;
@@ -51,6 +54,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
     public FluidPortBlockEntity(BlockEntityType<?> pType, BlockPos pPos, BlockState pBlockState) {
         super(pType, pPos, pBlockState);
+        setLazyTickRate(8);
     }
 
     public @Nullable BlockPos getFluidPumpPos() {
@@ -62,8 +66,8 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         sendDataImmediately();
     }
 
-    public Set<BlockPos> getTargets() {
-        return Set.copyOf(targetSet);
+    public Map<BlockPos, FluidPortTarget> getTargets() {
+        return targetMap;
     }
 
     public boolean isValidTarget(BlockPos pos) {
@@ -72,6 +76,8 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (be == null) return false;
         if (be.getBlockState().is(LogisticsBlocks.FLUID_PORT.get())) return false;
         if (!be.getCapability(ForgeCapabilities.FLUID_HANDLER).isPresent()) return false;
+        if (be instanceof IMultiBlockEntityContainer.Fluid multiBlock)
+            if (!multiBlock.isController()) return false;
 
         ServerShip shipA = VSGameUtilsKt.getShipManagingPos(serverLevel, getBlockPos());
         ServerShip shipB = VSGameUtilsKt.getShipManagingPos(serverLevel, pos);
@@ -84,23 +90,93 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (!isValidTarget(pos))
             return;
 
-        targetSet.add(pos);
-        sendDataImmediately();
+        targetMap.put(pos, new FluidPortTarget(pos));
     }
 
-    public void removeTarget(BlockPos pos) {
-        targetSet.remove(pos);
-        sendDataImmediately();
+    private List<FluidPortTarget> getTargetsByMode(FluidPortTarget.Mode mode) {
+        List<FluidPortTarget> list = new ArrayList<>();
+        for (FluidPortTarget target : targetMap.values())
+            if (target.getMode() == mode)
+                list.add(target);
+        return list;
     }
+
+    private void transferFluids() {
+        if (level == null || level.isClientSide)
+            return;
+
+        List<FluidPortTarget> sources = getTargetsByMode(FluidPortTarget.Mode.PULL);
+        List<FluidPortTarget> destinations = getTargetsByMode(FluidPortTarget.Mode.PUSH);
+
+        for (FluidPortTarget destTarget : destinations) {
+            destTarget.getFluidHandler(level).ifPresent(destHandler -> {
+
+                for (FluidPortTarget sourceTarget : sources) {
+                    sourceTarget.getFluidHandler(level).ifPresent(sourceHandler -> {
+
+                        for (int i = 0; i < sourceHandler.getTanks(); i++) {
+                            FluidStack extractSim = sourceHandler.drain(
+                                    sourceHandler.getFluidInTank(i).copy(),
+                                    IFluidHandler.FluidAction.SIMULATE
+                            );
+                            if (extractSim.isEmpty())
+                                continue;
+
+                            // Try to fill destination
+                            int filled = destHandler.fill(extractSim, IFluidHandler.FluidAction.EXECUTE);
+
+                            // Actually drain only the amount filled
+                            if (filled > 0)
+                                sourceHandler.drain(new FluidStack(extractSim.getFluid(), filled), IFluidHandler.FluidAction.EXECUTE);
+
+                            // Stop early if destination is full
+                            if (destHandler.getTanks() > 0 && destHandler.getFluidInTank(0).getAmount() >= destHandler.getTankCapacity(0))
+                                break;
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    private void removeInvalidTargets() {
+        if (level == null || level.isClientSide)
+            return;
+
+        List<BlockPos> toRemove = new ArrayList<>();
+
+        for (FluidPortTarget target : targetMap.values()) {
+            if (!isValidTarget(target.getPos())) {
+                toRemove.add(target.getPos());
+            }
+        }
+
+        for (BlockPos pos : toRemove) {
+            targetMap.remove(pos);
+            sendData();
+        }
+    }
+
 
     @Override
     public void tick() {
         super.tick();
+
+        if (level != null && !level.isClientSide) {
+            transferFluids();
+        }
+
         if (syncCooldown > 0) {
             syncCooldown--;
             if (syncCooldown == 0 && queuedSync)
                 sendData();
         }
+    }
+
+    @Override
+    public void lazyTick() {
+        super.lazyTick();
+        removeInvalidTargets();
     }
 
     public @Nullable IFluidHandler getFluidHandler() {
@@ -116,10 +192,13 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (tag.contains("FluidPumpPos"))
             fluidPumpPos = NbtUtils.readBlockPos(tag.getCompound("FluidPumpPos"));
 
-        targetSet.clear();
-        ListTag targets = tag.getList("Targets", Tag.TAG_COMPOUND);
-        for (Tag target : targets)
-            targetSet.add(NbtUtils.readBlockPos((CompoundTag)target));
+        targetMap.clear();
+        for (Tag base : tag.getList("Targets", Tag.TAG_COMPOUND)) {
+            CompoundTag t = (CompoundTag)base;
+            BlockPos pos = NbtUtils.readBlockPos(t.getCompound("Pos"));
+            FluidPortTarget.Mode mode = FluidPortTarget.MODES[t.getInt("Mode")];
+            targetMap.put(pos, new FluidPortTarget(pos, mode));
+        }
 
         cachedFluids.clear();
         ListTag list = tag.getList("Fluids", Tag.TAG_COMPOUND);
@@ -139,8 +218,12 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
             tag.put("FluidPumpPos", NbtUtils.writeBlockPos(fluidPumpPos));
 
         ListTag targets = new ListTag();
-        for (BlockPos target : targetSet)
-            targets.add(NbtUtils.writeBlockPos(target));
+        for (FluidPortTarget target : targetMap.values()) {
+            CompoundTag t = new CompoundTag();
+            t.put("Pos", NbtUtils.writeBlockPos(target.getPos()));
+            t.putInt("Mode", target.getMode().ordinal());
+            targets.add(t);
+        }
         tag.put("Targets", targets);
 
         if (fluidHandler != null) {
@@ -177,7 +260,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         super.onLoad();
 
         if (fluidCapability == null || !fluidCapability.isPresent()) {
-            fluidHandler = new FluidPortFluidHandler(targetSet, level, this::onFluidStackChanged);
+            fluidHandler = new FluidPortFluidHandler(targetMap, level, this::onFluidStackChanged);
             fluidCapability = LazyOptional.of(() -> fluidHandler);
         }
     }
@@ -189,8 +272,10 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     private void onFluidStackChanged() {
-        if (level != null && !level.isClientSide)
-            notifyUpdate();
+        if (level != null && !level.isClientSide) {
+            setChanged();
+            sendData();
+        }
     }
 
     @Override
