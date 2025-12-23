@@ -1,9 +1,6 @@
 package com.fiisadev.vs_logistics.client.utils;
 
-import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -13,26 +10,6 @@ public class HoseUtils {
     public static final int SEGMENTS = 32;
     public static final int RADIAL_SEGMENTS = 8;
     public static final float RADIUS = 0.05f;
-
-    public static Vec3 getNozzleHandlePosition(Player player, float partialTicks){
-        Minecraft minecraft = Minecraft.getInstance();
-        float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * partialTicks;
-
-        if(player.equals(minecraft.player) && minecraft.options.getCameraType() == CameraType.FIRST_PERSON)
-        {
-            return new Vec3(-0.5, 1, -3).yRot((float)Math.toRadians(-bodyRotation));
-        }
-
-        Vec3 nozzlePos = new Vec3(-0.38, 0.783, -0.03);
-
-        if(player instanceof AbstractClientPlayer ap && "slim".equals(ap.getModelName()))
-            nozzlePos = nozzlePos.add(0.03, -0.03, 0.0);
-
-        if (player.isCrouching())
-            nozzlePos = nozzlePos.add(0, -0.33, 0);
-
-        return nozzlePos.yRot((float)Math.toRadians(-bodyRotation));
-    }
 
     private static Vec3 bezier(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, float t) {
         float u = 1 - t;

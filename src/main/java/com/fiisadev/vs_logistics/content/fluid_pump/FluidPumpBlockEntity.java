@@ -60,19 +60,24 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return pumpHandler;
     }
 
-    public void setPumpHandler(IFluidPumpHandler pumpHandler, boolean sendData) {
-        if ((this.pumpHandler != null && this.pumpHandler.equals(pumpHandler)) || (this.pumpHandler == null && pumpHandler == null)) return;
+    public void setPumpHandler(IFluidPumpHandler pumpHandler) {
+        if (this.pumpHandler == null && pumpHandler == null) return;
+        if (this.pumpHandler != null && this.pumpHandler.equals(pumpHandler)) return;
 
-        if (this.pumpHandler != null)
-            this.pumpHandler.onStopUsing();
+        if (level instanceof ServerLevel) {
+            if (this.pumpHandler != null)
+                this.pumpHandler.onStopUsing();
 
-        this.pumpHandler = pumpHandler;
+            this.pumpHandler = pumpHandler;
 
-        if (this.pumpHandler != null)
-            this.pumpHandler.onStartUsing();
+            if (this.pumpHandler != null)
+                this.pumpHandler.onStartUsing();
 
-        if (sendData)
             sendDataImmediately();
+            setChanged();
+        } else {
+            this.pumpHandler = pumpHandler;
+        }
     }
 
     private final SmartFluidTank fluidTank = new SmartFluidTank(8000, this::onFluidStackChange);
@@ -156,7 +161,7 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
                 )
             );
 
-            setPumpHandler(null, true);
+            setPumpHandler(null);
         }
     }
 
@@ -232,16 +237,16 @@ public class FluidPumpBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (tag.contains("UserType")) {
             switch (tag.getString("UserType")) {
                 case "PLAYER":
-                    setPumpHandler(new PlayerHandler(this, UUID.fromString(tag.getString("UserId"))), !clientPacket);
+                    setPumpHandler(new PlayerHandler(this, UUID.fromString(tag.getString("UserId"))));
                     break;
                 case "FLUID_PORT":
-                    setPumpHandler(new FluidPortHandler(this, BlockPos.of(Long.parseLong(tag.getString("UserId")))), !clientPacket);
+                    setPumpHandler(new FluidPortHandler(this, BlockPos.of(Long.parseLong(tag.getString("UserId")))));
                     break;
                 default:
                     break;
             }
         } else {
-            setPumpHandler(null, !clientPacket);
+            setPumpHandler(null);
         }
     }
 

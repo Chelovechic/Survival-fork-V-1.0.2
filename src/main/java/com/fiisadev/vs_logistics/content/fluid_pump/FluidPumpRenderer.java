@@ -1,13 +1,15 @@
 package com.fiisadev.vs_logistics.content.fluid_pump;
 
 import com.fiisadev.vs_logistics.client.utils.HoseUtils;
+import com.fiisadev.vs_logistics.event.FluidPumpHandler;
 import com.mojang.blaze3d.vertex.*;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.Direction;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
@@ -31,22 +33,29 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
 
     @Override
     protected void renderSafe(FluidPumpBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-        if (be.getPumpHandler() == null)
-            return;
+        IFluidPumpHandler handler = be.getPumpHandler();
+        if (handler == null) return;
 
         ms.pushPose();
 
         Vec3 origin = VSGameUtilsKt.toWorldCoordinates(be.getLevel(), Vec3.atLowerCornerOf(be.getBlockPos()));
-
         VertexConsumer builder = buffer.getBuffer(RenderType.debugQuads());
-
         Vec3 pumpPos = be.getHoseStart();
-        Vec3 userPos = be.getPumpHandler().getHoseEnd(partialTicks);
+        Vec3 userPos = handler.getHoseEnd(partialTicks);
+
+        Player player = Minecraft.getInstance().player;
+
+        if (handler.is(player)) {
+            if (Minecraft.getInstance().options.getCameraType() == CameraType.FIRST_PERSON) {
+                float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * partialTicks;
+                userPos = player.getPosition(partialTicks).add(new Vec3(-0.5, 1, -3).yRot((float)Math.toRadians(-bodyRotation)));
+            }
+        }
 
         double dist = pumpPos.distanceTo(userPos);
 
         Vec3 p1 = pumpPos.add(be.getHoseDir().scale(dist * 0.3f));
-        Vec3 p2 = userPos.subtract(be.getPumpHandler().getHoseDir(partialTicks).scale(dist * 0.3f));
+        Vec3 p2 = userPos.subtract(handler.getHoseDir(partialTicks).scale(dist * 0.3f));
 
         renderCurvedHose(builder, ms, pumpPos, userPos, p1, p2, dist, origin);
         ms.popPose();

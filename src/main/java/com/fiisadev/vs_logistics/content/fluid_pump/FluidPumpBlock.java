@@ -68,12 +68,12 @@ public class FluidPumpBlock extends HorizontalDirectionalBlock implements IWrenc
                     BlockPos fluidPumpPos = playerData.getFluidPumpPos();
 
                     if (fluidPumpPos == null) {
-                        be.setPumpHandler(new PlayerHandler(be, player.getUUID()), true);
+                        be.setPumpHandler(new PlayerHandler(be, player.getUUID()));
                         return;
                     }
 
                     if (fluidPumpPos.equals(pos))
-                        be.setPumpHandler(null, true);
+                        be.setPumpHandler(null);
                 });
             });
         }

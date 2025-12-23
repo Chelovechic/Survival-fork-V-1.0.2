@@ -8,8 +8,12 @@ import com.fiisadev.vs_logistics.content.fluid_pump.IFluidPumpHandler;
 import com.fiisadev.vs_logistics.event.FluidPumpHandler;
 import com.fiisadev.vs_logistics.network.SyncFluidPumpPlayerCapPacket;
 import com.fiisadev.vs_logistics.registry.LogisticsNetwork;
+import net.minecraft.client.CameraType;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -44,10 +48,18 @@ public record PlayerHandler(FluidPumpBlockEntity fluidPump, UUID playerId) imple
         if (player == null)
             return Vec3.ZERO;
 
+        float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * partialTicks;
+
+        Vec3 nozzlePos = new Vec3(-0.38, 0.783, -0.03);
+
+        if (player.isCrouching())
+            nozzlePos = nozzlePos.add(0, -0.33, 0);
+
+        nozzlePos = nozzlePos.yRot((float)Math.toRadians(-bodyRotation));
+
         return player
                 .getPosition(partialTicks)
-                .add(HoseUtils.
-                        getNozzleHandlePosition(player, partialTicks));
+                .add(nozzlePos);
     }
 
     public Vec3 getHoseDir(float partialTicks) {
@@ -123,45 +135,38 @@ public record PlayerHandler(FluidPumpBlockEntity fluidPump, UUID playerId) imple
     }
 
     public void syncCapability(BlockPos fluidPumpPos) {
-        if (fluidPump.getLevel() == null)
-            return;
-
-        Player player = fluidPump.getLevel().getPlayerByUUID(playerId);
-        if (player == null)
-            return;
-
         LogisticsNetwork.CHANNEL.send(
                 PacketDistributor.ALL.noArg(),
-                new SyncFluidPumpPlayerCapPacket(fluidPumpPos, player.getUUID())
+                new SyncFluidPumpPlayerCapPacket(fluidPumpPos, playerId)
         );
     }
 
     @Override
     public void onStartUsing() {
-        if (fluidPump.getLevel() == null)
-            return;
+        if (fluidPump.getLevel() instanceof ServerLevel) {
+            Player player = fluidPump.getLevel().getPlayerByUUID(playerId);
 
-        Player player = fluidPump.getLevel().getPlayerByUUID(playerId);
-        if (player == null)
-            return;
+            if (player == null)
+                return;
 
-        player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
-            playerData.setFluidPumpPos(fluidPump.getBlockPos());
-            syncCapability(fluidPump.getBlockPos());
-        });
+            player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
+                playerData.setFluidPumpPos(fluidPump.getBlockPos());
+                syncCapability(fluidPump.getBlockPos());
+            });
+        }
     }
 
     public void onStopUsing() {
-        if (fluidPump.getLevel() == null)
-            return;
+        if (fluidPump.getLevel() instanceof ServerLevel) {
+            Player player = fluidPump.getLevel().getPlayerByUUID(playerId);
 
-        Player player = fluidPump.getLevel().getPlayerByUUID(playerId);
-        if (player == null)
-            return;
+            if (player == null)
+                return;
 
-        player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
-            playerData.setFluidPumpPos(null);
-            syncCapability(null);
-        });
+            player.getCapability(FluidPumpPlayerDataProvider.FLUID_PUMP_PLAYER_DATA).ifPresent((playerData) -> {
+                playerData.setFluidPumpPos(null);
+                syncCapability(null);
+            });
+        }
     }
 }

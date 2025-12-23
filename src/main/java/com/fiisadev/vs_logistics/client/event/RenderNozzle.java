@@ -6,7 +6,9 @@ import com.fiisadev.vs_logistics.content.fluid_pump.FluidPumpPlayerDataProvider;
 import com.fiisadev.vs_logistics.registry.LogisticsItems;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.ItemRenderer;
@@ -90,18 +92,26 @@ public class RenderNozzle {
 
             player.swinging = false;
 
+            Minecraft mc = Minecraft.getInstance();
             PoseStack ps = event.getPoseStack();
             MultiBufferSource buffers = event.getMultiBufferSource();
-            ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+            ItemRenderer itemRenderer = mc.getItemRenderer();
             int packedLight = event.getPackedLight();
 
             ps.pushPose();
 
-            Vec3 pos = HoseUtils.getNozzleHandlePosition(player, event.getPartialTick());
-            ps.translate(pos.x, pos.y, pos.z);
-
-
             float bodyRotation = player.yBodyRotO + (player.yBodyRot - player.yBodyRotO) * event.getPartialTick();
+            Vec3 pos = new Vec3(-0.38, 0.783, -0.03);
+
+            if(player instanceof AbstractClientPlayer ap && "slim".equals(ap.getModelName()))
+                pos = pos.add(0.03, -0.03, 0.0);
+
+            if (player.isCrouching())
+                pos = pos.add(0, -0.33, 0);
+
+            pos = pos.yRot((float)Math.toRadians(-bodyRotation));
+
+            ps.translate(pos.x, pos.y, pos.z);
             ps.mulPose(Axis.YN.rotationDegrees(bodyRotation + 180));
             ps.mulPose(Axis.XP.rotationDegrees(22.5f));
 

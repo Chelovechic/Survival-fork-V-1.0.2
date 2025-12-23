@@ -60,13 +60,13 @@ public class FluidPortBlock extends DirectionalBlock implements IWrenchable, IBE
 
                     if (canPickNozzle) {
                         FluidPumpBlockEntity.withBlockEntityDo(level, be.getFluidPumpPos(), (fluidPump) ->
-                                fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player.getUUID()), true)
+                                fluidPump.setPumpHandler(new PlayerHandler(fluidPump, player.getUUID()))
                         );
                     }
 
                     if (canInsertNozzle) {
                         FluidPumpBlockEntity.withBlockEntityDo(level, playerData.getFluidPumpPos(), (fluidPump) ->
-                            fluidPump.setPumpHandler(new FluidPortHandler(fluidPump, be.getBlockPos()), true)
+                            fluidPump.setPumpHandler(new FluidPortHandler(fluidPump, be.getBlockPos()))
                         );
                     }
                 });
