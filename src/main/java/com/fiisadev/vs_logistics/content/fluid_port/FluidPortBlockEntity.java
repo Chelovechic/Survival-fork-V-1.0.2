@@ -77,6 +77,11 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         if (be instanceof IMultiBlockEntityContainer.Fluid multiBlock)
             if (!multiBlock.isController()) return false;
 
+        // Проверка хуйни
+        BlockPos portPos = getBlockPos();
+        int distance = portPos.distManhattan(pos);
+        if (distance > 3) return false;
+
         ServerShip shipA = VSGameUtilsKt.getShipManagingPos(serverLevel, getBlockPos());
         ServerShip shipB = VSGameUtilsKt.getShipManagingPos(serverLevel, pos);
         if (shipA == null || shipB == null) return false;
