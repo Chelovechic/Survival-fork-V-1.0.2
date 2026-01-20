@@ -3,15 +3,27 @@ package com.fiisadev.vs_logistics.content.fluid_pump;
 import com.fiisadev.vs_logistics.client.utils.HoseUtils;
 import com.fiisadev.vs_logistics.event.FluidPumpHandler;
 import com.mojang.blaze3d.vertex.*;
+import com.mojang.math.Axis;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
+import net.createmod.catnip.data.Pair;
+import net.createmod.catnip.outliner.Outliner;
+import net.createmod.catnip.theme.Color;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.valkyrienskies.core.api.ships.Ship;
+import org.valkyrienskies.mod.api.ValkyrienSkies;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
+
+import java.util.logging.Level;
 
 public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEntity> {
     public static final int SEGMENTS = HoseUtils.SEGMENTS;
@@ -38,7 +50,15 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
 
         ms.pushPose();
 
+        Ship ship = ValkyrienSkies.getShipManagingBlock(be.getLevel(), be.getBlockPos());
+
+        if (ship != null) {
+            double yRot = ship.getTransform().getRotation().y();
+            ms.mulPose(Axis.YP.rotationDegrees(-(float)yRot));
+        }
+
         Vec3 origin = VSGameUtilsKt.toWorldCoordinates(be.getLevel(), Vec3.atLowerCornerOf(be.getBlockPos()));
+
         VertexConsumer builder = buffer.getBuffer(RenderType.debugQuads());
         Vec3 pumpPos = be.getHoseStart();
         Vec3 userPos = handler.getHoseEnd(partialTicks);
@@ -57,14 +77,15 @@ public class FluidPumpRenderer extends SafeBlockEntityRenderer<FluidPumpBlockEnt
         Vec3 p1 = pumpPos.add(be.getHoseDir().scale(dist * 0.3f));
         Vec3 p2 = userPos.subtract(handler.getHoseDir(partialTicks).scale(dist * 0.3f));
 
-        renderCurvedHose(builder, ms, pumpPos, userPos, p1, p2, dist, origin);
+        renderCurvedHose(builder, ms, be.getBlockPos(), pumpPos, userPos, p1, p2, dist, origin);
         ms.popPose();
     }
 
-    private static void renderCurvedHose(VertexConsumer builder, PoseStack ms, Vec3 start, Vec3 end, Vec3 p1, Vec3 p2, double dist, Vec3 origin) {
+    private static void renderCurvedHose(VertexConsumer builder, PoseStack ms, BlockPos pos, Vec3 start, Vec3 end, Vec3 p1, Vec3 p2, double dist, Vec3 origin) {
         Vec3[] centers = HoseUtils.generateHoseSegments(start, end, p1, p2, dist);
 
         Vec3 prevUp = new Vec3(0, 1, 0);
+
         Vec3[] prevRing = new Vec3[RADIAL_SEGMENTS];
         Vec3[] currRing = new Vec3[RADIAL_SEGMENTS];
 

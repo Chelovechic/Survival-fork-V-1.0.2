@@ -12,7 +12,8 @@ import java.util.Optional;
 public class FluidPortTarget {
     public enum Mode {
         PUSH(16691293),
-        PULL(5929677);
+        PULL(5929677),
+        EQUALIZE(2282554);
 
         public final int color;
 

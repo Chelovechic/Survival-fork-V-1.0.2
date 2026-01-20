@@ -10,7 +10,6 @@ import com.simibubi.create.foundation.item.TooltipModifier;
 import net.createmod.catnip.lang.FontHelper;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -45,7 +44,6 @@ public class VSLogistics {
         LogisticsEntityTypes.register();
 
         modEventBus.addListener(EventPriority.LOWEST, LogisticsDatagen::gatherData);
-        MinecraftForge.EVENT_BUS.addListener(this::onServerStarting);
         modEventBus.addListener(this::commonSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.SPEC);
         ValkyrienSkies.api().getPhysTickEvent().on(JointManager::onPhysicsTick);
@@ -53,12 +51,6 @@ public class VSLogistics {
 
     public void commonSetup(final FMLCommonSetupEvent event) {
         event.enqueueWork(LogisticsNetwork::register);
-    }
-
-    public void onServerStarting(ServerStartingEvent event) {
-//        if (event.getServer().isDedicatedServer()) {
-//            System.exit(-1);
-//        }
     }
 
     public static ResourceLocation asResource(String path) {

@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
@@ -30,10 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import org.valkyrienskies.core.api.ships.ServerShip;
 import org.valkyrienskies.mod.common.VSGameUtilsKt;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
     private final Map<BlockPos, FluidPortTarget> targetMap = new HashMap<>();
@@ -54,7 +52,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
     public FluidPortBlockEntity(BlockEntityType<?> pType, BlockPos pPos, BlockState pBlockState) {
         super(pType, pPos, pBlockState);
-        setLazyTickRate(8);
+        setLazyTickRate(4);
     }
 
     public @Nullable BlockPos getFluidPumpPos() {
@@ -101,42 +99,136 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         return list;
     }
 
-    private void transferFluids() {
-        if (level == null || level.isClientSide)
-            return;
+    private void distributeBetweenGroups(List<FluidPortTarget> sources, List<FluidPortTarget> destinations) {
+        for (FluidPortTarget dest : destinations) {
+            dest.getFluidHandler(level).ifPresent(destHandler -> {
+                for (FluidPortTarget src : sources) {
+                    src.getFluidHandler(level).ifPresent(srcHandler -> {
+                        for (int i = 0; i < srcHandler.getTanks(); i++) {
+                            FluidStack srcFluid = srcHandler.getFluidInTank(i);
+                            if (srcFluid.isEmpty()) continue;
 
-        List<FluidPortTarget> sources = getTargetsByMode(FluidPortTarget.Mode.PULL);
-        List<FluidPortTarget> destinations = getTargetsByMode(FluidPortTarget.Mode.PUSH);
+                            FluidStack toDrain = srcHandler.drain(srcFluid, IFluidHandler.FluidAction.SIMULATE);
+                            if (toDrain.isEmpty()) continue;
 
-        for (FluidPortTarget destTarget : destinations) {
-            destTarget.getFluidHandler(level).ifPresent(destHandler -> {
+                            int toFill = destHandler.fill(toDrain, IFluidHandler.FluidAction.SIMULATE);
+                            if (toFill <= 0) continue;
 
-                for (FluidPortTarget sourceTarget : sources) {
-                    sourceTarget.getFluidHandler(level).ifPresent(sourceHandler -> {
-
-                        for (int i = 0; i < sourceHandler.getTanks(); i++) {
-                            FluidStack extractSim = sourceHandler.drain(
-                                    sourceHandler.getFluidInTank(i).copy(),
-                                    IFluidHandler.FluidAction.SIMULATE
-                            );
-                            if (extractSim.isEmpty())
-                                continue;
-
-                            // Try to fill destination
-                            int filled = destHandler.fill(extractSim, IFluidHandler.FluidAction.EXECUTE);
-
-                            // Actually drain only the amount filled
-                            if (filled > 0)
-                                sourceHandler.drain(new FluidStack(extractSim.getFluid(), filled), IFluidHandler.FluidAction.EXECUTE);
-
-                            // Stop early if destination is full
-                            if (destHandler.getTanks() > 0 && destHandler.getFluidInTank(0).getAmount() >= destHandler.getTankCapacity(0))
-                                break;
+                            // TODO config
+                            FluidStack drained = srcHandler.drain(new FluidStack(toDrain.getFluid(), Math.min(toFill, 540)), IFluidHandler.FluidAction.EXECUTE);
+                            if (!drained.isEmpty()) {
+                                destHandler.fill(drained, IFluidHandler.FluidAction.EXECUTE);
+                                sendData();
+                            }
                         }
                     });
                 }
             });
         }
+    }
+
+    private void equalizeTanks(List<FluidPortTarget> targets) {
+        List<IFluidHandler> handlers = targets.stream()
+                .map(t -> t.getFluidHandler(level))
+                .flatMap(opt -> opt.resolve().stream())
+                .toList();
+
+        if (handlers.isEmpty()) return;
+
+        List<FluidTankSlot> allSlots = new ArrayList<>();
+        for (IFluidHandler handler : handlers) {
+            for (int i = 0; i < handler.getTanks(); i++) {
+                allSlots.add(new FluidTankSlot(handler, i));
+            }
+        }
+
+        Map<Fluid, Integer> totalAmount = new HashMap<>();
+        Map<Fluid, List<FluidTankSlot>> fluidSlots = new HashMap<>();
+        for (FluidTankSlot slot : allSlots) {
+            FluidStack stack = slot.getFluid();
+            if (!stack.isEmpty()) {
+                Fluid fluid = stack.getFluid();
+                totalAmount.merge(fluid, stack.getAmount(), Integer::sum);
+                fluidSlots.computeIfAbsent(fluid, k -> new ArrayList<>()).add(slot);
+            }
+        }
+
+        for (Fluid fluid : fluidSlots.keySet()) {
+            List<FluidTankSlot> compatible = allSlots.stream()
+                    .filter(slot -> {
+                        FluidStack fs = slot.getFluid();
+                        return fs.getFluid() == fluid || (fs.isEmpty() && slot.canAccept(fluid));
+                    })
+                    .sorted(Comparator
+                            .comparingInt(slot -> System.identityHashCode(((FluidTankSlot)slot).handler))
+                            .thenComparingInt(slot -> ((FluidTankSlot)slot).tankIndex))
+                    .toList();
+
+            if (compatible.isEmpty()) continue;
+
+            int drainedTotal = 0;
+            for (FluidTankSlot slot : allSlots) {
+                FluidStack fs = slot.getFluid();
+                if (fs.getFluid() == fluid) {
+                    FluidStack drained = slot.handler.drain(
+                            new FluidStack(fluid, fs.getAmount()),
+                            IFluidHandler.FluidAction.EXECUTE
+                    );
+                    drainedTotal += drained.getAmount();
+                }
+            }
+            if (drainedTotal <= 0) continue;
+
+            int n = compatible.size();
+            int average = drainedTotal / n;
+            int remainder = drainedTotal % n;
+
+            for (FluidTankSlot slot : compatible) {
+                int capacity = slot.handler.getTankCapacity(slot.tankIndex);
+                int amount = Math.min(average + (remainder-- > 0 ? 1 : 0), capacity);
+                if (amount > 0) {
+                    slot.handler.fill(new FluidStack(fluid, amount), IFluidHandler.FluidAction.EXECUTE);
+                }
+            }
+        }
+    }
+
+    private static class FluidTankSlot {
+        final IFluidHandler handler;
+        final int tankIndex;
+
+        FluidTankSlot(IFluidHandler handler, int tankIndex) {
+            this.handler = handler;
+            this.tankIndex = tankIndex;
+        }
+
+        FluidStack getFluid() {
+            return handler.getFluidInTank(tankIndex);
+        }
+
+        boolean canAccept(Fluid fluid) {
+            return handler.isFluidValid(tankIndex, new FluidStack(fluid, 1));
+        }
+    }
+
+    private void distributeFluids() {
+        if (level == null || level.isClientSide)
+            return;
+
+        if (getTargets().isEmpty())
+            return;
+
+        List<FluidPortTarget> pullList = getTargetsByMode(FluidPortTarget.Mode.PULL);
+        List<FluidPortTarget> pushList = getTargetsByMode(FluidPortTarget.Mode.PUSH);
+        List<FluidPortTarget> equalizeList = getTargetsByMode(FluidPortTarget.Mode.EQUALIZE);
+
+        List<FluidPortTarget> merged = new ArrayList<>();
+        merged.addAll(pullList);
+        merged.addAll(equalizeList);
+
+        distributeBetweenGroups(merged, pushList);
+        distributeBetweenGroups(pullList, equalizeList);
+        equalizeTanks(equalizeList);
     }
 
     private void removeInvalidTargets() {
@@ -157,14 +249,9 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
         }
     }
 
-
     @Override
     public void tick() {
         super.tick();
-
-        if (level != null && !level.isClientSide) {
-            transferFluids();
-        }
 
         if (syncCooldown > 0) {
             syncCooldown--;
@@ -177,6 +264,7 @@ public class FluidPortBlockEntity extends SmartBlockEntity implements IHaveGoggl
     public void lazyTick() {
         super.lazyTick();
         removeInvalidTargets();
+        distributeFluids();
     }
 
     public @Nullable IFluidHandler getFluidHandler() {

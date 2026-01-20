@@ -1,4 +1,5 @@
 {
+  "block.vs_logistics.feeder": "Feeder",
   "block.vs_logistics.fluid_port": "Fluid Port",
   "block.vs_logistics.fluid_port.tooltip.summary": "A simple connection point for your _tanks_. Any fluid pumped into it flows straight to the _linked tank_ on your VS ship.",
   "block.vs_logistics.fluid_pump": "Fluid Pump",

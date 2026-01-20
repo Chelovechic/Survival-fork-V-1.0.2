@@ -81,26 +81,21 @@ public class FluidPortHandler {
             for (FluidPortTarget target : fluidPort.getTargets().values()) {
                 BlockPos pos = target.getPos();
                 AABB aabb = AABB.unitCubeFromLowerCorner(Vec3.atLowerCornerOf(pos));
-                Vec3 center = pos.getCenter();
 
                 if (player.level().getBlockEntity(pos) instanceof IMultiBlockEntityContainer.Fluid multiBlock) {
-                    Vec3 size = new Vec3(multiBlock.getWidth(), multiBlock.getHeight(), multiBlock.getWidth());
+                    Vec3 size;
+                    Direction.Axis axis = multiBlock.getMainConnectionAxis();
 
-                    BlockState state = multiBlock.getControllerBE().getBlockState();
-                    if (state.hasProperty(BlockStateProperties.HORIZONTAL_AXIS)) {
-                        Direction.Axis axis = state.getValue(BlockStateProperties.HORIZONTAL_AXIS);
-
-                        if (axis == Direction.Axis.X)
-                            size.zRot(90);
-                        if (axis == Direction.Axis.Z)
-                            size.xRot(90);
-                    }
+                    if (axis == Direction.Axis.Y)
+                        size = new Vec3(multiBlock.getWidth(), multiBlock.getHeight(), multiBlock.getWidth());
+                    else if (axis == Direction.Axis.X)
+                        size = new Vec3(multiBlock.getHeight(), multiBlock.getWidth(), multiBlock.getWidth());
+                    else
+                        size = new Vec3(multiBlock.getWidth(), multiBlock.getWidth(), multiBlock.getHeight());
 
                     aabb = new AABB(0, 0, 0, size.x, size.y, size.z).move(Vec3.atLowerCornerOf(pos));
-                    center = Vec3.atLowerCornerOf(multiBlock.getController());
                 }
 
-                outliner.showLine(Pair.of(Pair.of("connection", selectedSource), pos), selectedSource.getCenter(), center);
                 outliner.showAABB(Pair.of(Pair.of("target", selectedSource), pos), aabb)
                         .lineWidth(1 / 16f)
                         .colored(target.getMode().color);

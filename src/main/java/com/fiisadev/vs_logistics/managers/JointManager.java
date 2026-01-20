@@ -5,44 +5,82 @@ import org.valkyrienskies.core.api.ships.Ship;
 import org.valkyrienskies.core.internal.joints.VSJoint;
 import org.valkyrienskies.core.internal.world.VsiPhysLevel;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class JointManager {
-    private static VsiPhysLevel physLevel;
+
+    private static Map<Long, Set<Integer>> jointsByShip = Map.of();
+    private static Map<Integer, long[]> shipsByJoint = Map.of();
 
     public static void onPhysicsTick(PhysTickEvent event) {
-        if (physLevel == null)
-            physLevel = (VsiPhysLevel)event.getWorld();
+        VsiPhysLevel physLevel = (VsiPhysLevel) event.getWorld();
+
+        Map<Long, Set<Integer>> snapshot = physLevel.getJointsByShipIds();
+        if (snapshot.isEmpty()) {
+            return;
+        }
+
+        jointsByShip = snapshot;
+
+        Map<Integer, long[]> jointMap = new HashMap<>();
+
+        for (Set<Integer> jointIds : snapshot.values()) {
+            for (int jointId : jointIds) {
+                if (jointMap.containsKey(jointId)) continue;
+
+                VSJoint joint = physLevel.getJointById(jointId);
+                if (joint == null) continue;
+
+                Long a = joint.getShipId0();
+                Long b = joint.getShipId1();
+                if (a == null || b == null) continue;
+
+                jointMap.put(jointId, new long[]{a, b});
+            }
+        }
+
+        shipsByJoint = jointMap;
     }
+
 
     public static boolean isShipConnectedToShip(Ship target, Ship current) {
-        return isShipConnectedToShip(target, current, new HashSet<>());
+        return isShipConnectedToShip(target.getId(), current.getId(), new HashSet<>());
     }
 
-    private static boolean isShipConnectedToShip(Ship target, Ship current, Set<Long> visitedShips) {
-        if (visitedShips.contains(current.getId()))
+    private static boolean isShipConnectedToShip(
+            long targetId,
+            long currentId,
+            Set<Long> visitedShips
+    ) {
+        if (!visitedShips.add(currentId)) {
             return false;
+        }
 
-        visitedShips.add(current.getId());
-
-        if (current.getId() == target.getId()) {
+        if (currentId == targetId) {
             return true;
         }
 
-        for (int jointId : physLevel.getJointsFromShip(current.getId())) {
-            VSJoint joint = physLevel.getJointById(jointId);
-            if (joint == null) continue;
+        Set<Integer> jointIds = jointsByShip.get(currentId);
+        if (jointIds == null || jointIds.isEmpty()) {
+            return false;
+        }
 
-            Ship otherShip = physLevel.getShipById((joint.getShipId0() == current.getId()) ? joint.getShipId1() : joint.getShipId0());
-            if (otherShip == null) continue;
+        for (int jointId : jointIds) {
+            long[] ships = shipsByJoint.get(jointId);
+            if (ships == null) continue;
 
-            if (isShipConnectedToShip(target, otherShip, visitedShips)) {
+            long otherShipId =
+                    ships[0] == currentId ? ships[1] :
+                            ships[1] == currentId ? ships[0] :
+                                    -1;
+
+            if (otherShipId == -1) continue;
+
+            if (isShipConnectedToShip(targetId, otherShipId, visitedShips)) {
                 return true;
             }
         }
 
         return false;
     }
-
 }
